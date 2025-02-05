@@ -1,170 +1,59 @@
-# type-is
+![Async Logo](https://raw.githubusercontent.com/caolan/async/master/logo/async-logo_readme.jpg)
 
-[![NPM Version][npm-version-image]][npm-url]
-[![NPM Downloads][npm-downloads-image]][npm-url]
-[![Node.js Version][node-version-image]][node-version-url]
-[![Build Status][travis-image]][travis-url]
-[![Test Coverage][coveralls-image]][coveralls-url]
+![Github Actions CI status](https://github.com/caolan/async/actions/workflows/ci.yml/badge.svg)
+[![NPM version](https://img.shields.io/npm/v/async.svg)](https://www.npmjs.com/package/async)
+[![Coverage Status](https://coveralls.io/repos/caolan/async/badge.svg?branch=master)](https://coveralls.io/r/caolan/async?branch=master)
+[![Join the chat at https://gitter.im/caolan/async](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/caolan/async?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![jsDelivr Hits](https://data.jsdelivr.com/v1/package/npm/async/badge?style=rounded)](https://www.jsdelivr.com/package/npm/async)
 
-Infer the content-type of a request.
+<!--
+|Linux|Windows|MacOS|
+|-|-|-|
+|[![Linux Build Status](https://dev.azure.com/caolanmcmahon/async/_apis/build/status/caolan.async?branchName=master&jobName=Linux&configuration=Linux%20node_10_x)](https://dev.azure.com/caolanmcmahon/async/_build/latest?definitionId=1&branchName=master) | [![Windows Build Status](https://dev.azure.com/caolanmcmahon/async/_apis/build/status/caolan.async?branchName=master&jobName=Windows&configuration=Windows%20node_10_x)](https://dev.azure.com/caolanmcmahon/async/_build/latest?definitionId=1&branchName=master) | [![MacOS Build Status](https://dev.azure.com/caolanmcmahon/async/_apis/build/status/caolan.async?branchName=master&jobName=OSX&configuration=OSX%20node_10_x)](https://dev.azure.com/caolanmcmahon/async/_build/latest?definitionId=1&branchName=master)| -->
 
-### Install
+Async is a utility module which provides straight-forward, powerful functions for working with [asynchronous JavaScript](http://caolan.github.io/async/v3/global.html). Although originally designed for use with [Node.js](https://nodejs.org/) and installable via `npm i async`, it can also be used directly in the browser.  A ESM/MJS version is included in the main `async` package that should automatically be used with compatible bundlers such as Webpack and Rollup.
 
-This is a [Node.js](https://nodejs.org/en/) module available through the
-[npm registry](https://www.npmjs.com/). Installation is done using the
-[`npm install` command](https://docs.npmjs.com/getting-started/installing-npm-packages-locally):
+A pure ESM version of Async is available as [`async-es`](https://www.npmjs.com/package/async-es).
 
-```sh
-$ npm install type-is
+For Documentation, visit <https://caolan.github.io/async/>
+
+*For Async v1.5.x documentation, go [HERE](https://github.com/caolan/async/blob/v1.5.2/README.md)*
+
+
+```javascript
+// for use with Node-style callbacks...
+var async = require("async");
+
+var obj = {dev: "/dev.json", test: "/test.json", prod: "/prod.json"};
+var configs = {};
+
+async.forEachOf(obj, (value, key, callback) => {
+    fs.readFile(__dirname + value, "utf8", (err, data) => {
+        if (err) return callback(err);
+        try {
+            configs[key] = JSON.parse(data);
+        } catch (e) {
+            return callback(e);
+        }
+        callback();
+    });
+}, err => {
+    if (err) console.error(err.message);
+    // configs is now a map of JSON data
+    doSomethingWith(configs);
+});
 ```
 
-## API
+```javascript
+var async = require("async");
 
-```js
-var http = require('http')
-var typeis = require('type-is')
-
-http.createServer(function (req, res) {
-  var istext = typeis(req, ['text/*'])
-  res.end('you ' + (istext ? 'sent' : 'did not send') + ' me text')
+// ...or ES2017 async functions
+async.mapLimit(urls, 5, async function(url) {
+    const response = await fetch(url)
+    return response.body
+}, (err, results) => {
+    if (err) throw err
+    // results is now an array of the response bodies
+    console.log(results)
 })
 ```
-
-### typeis(request, types)
-
-Checks if the `request` is one of the `types`. If the request has no body,
-even if there is a `Content-Type` header, then `null` is returned. If the
-`Content-Type` header is invalid or does not matches any of the `types`, then
-`false` is returned. Otherwise, a string of the type that matched is returned.
-
-The `request` argument is expected to be a Node.js HTTP request. The `types`
-argument is an array of type strings.
-
-Each type in the `types` array can be one of the following:
-
-- A file extension name such as `json`. This name will be returned if matched.
-- A mime type such as `application/json`.
-- A mime type with a wildcard such as `*/*` or `*/json` or `application/*`.
-  The full mime type will be returned if matched.
-- A suffix such as `+json`. This can be combined with a wildcard such as
-  `*/vnd+json` or `application/*+json`. The full mime type will be returned
-  if matched.
-
-Some examples to illustrate the inputs and returned value:
-
-<!-- eslint-disable no-undef -->
-
-```js
-// req.headers.content-type = 'application/json'
-
-typeis(req, ['json']) // => 'json'
-typeis(req, ['html', 'json']) // => 'json'
-typeis(req, ['application/*']) // => 'application/json'
-typeis(req, ['application/json']) // => 'application/json'
-
-typeis(req, ['html']) // => false
-```
-
-### typeis.hasBody(request)
-
-Returns a Boolean if the given `request` has a body, regardless of the
-`Content-Type` header.
-
-Having a body has no relation to how large the body is (it may be 0 bytes).
-This is similar to how file existence works. If a body does exist, then this
-indicates that there is data to read from the Node.js request stream.
-
-<!-- eslint-disable no-undef -->
-
-```js
-if (typeis.hasBody(req)) {
-  // read the body, since there is one
-
-  req.on('data', function (chunk) {
-    // ...
-  })
-}
-```
-
-### typeis.is(mediaType, types)
-
-Checks if the `mediaType` is one of the `types`. If the `mediaType` is invalid
-or does not matches any of the `types`, then `false` is returned. Otherwise, a
-string of the type that matched is returned.
-
-The `mediaType` argument is expected to be a
-[media type](https://tools.ietf.org/html/rfc6838) string. The `types` argument
-is an array of type strings.
-
-Each type in the `types` array can be one of the following:
-
-- A file extension name such as `json`. This name will be returned if matched.
-- A mime type such as `application/json`.
-- A mime type with a wildcard such as `*/*` or `*/json` or `application/*`.
-  The full mime type will be returned if matched.
-- A suffix such as `+json`. This can be combined with a wildcard such as
-  `*/vnd+json` or `application/*+json`. The full mime type will be returned
-  if matched.
-
-Some examples to illustrate the inputs and returned value:
-
-<!-- eslint-disable no-undef -->
-
-```js
-var mediaType = 'application/json'
-
-typeis.is(mediaType, ['json']) // => 'json'
-typeis.is(mediaType, ['html', 'json']) // => 'json'
-typeis.is(mediaType, ['application/*']) // => 'application/json'
-typeis.is(mediaType, ['application/json']) // => 'application/json'
-
-typeis.is(mediaType, ['html']) // => false
-```
-
-## Examples
-
-### Example body parser
-
-```js
-var express = require('express')
-var typeis = require('type-is')
-
-var app = express()
-
-app.use(function bodyParser (req, res, next) {
-  if (!typeis.hasBody(req)) {
-    return next()
-  }
-
-  switch (typeis(req, ['urlencoded', 'json', 'multipart'])) {
-    case 'urlencoded':
-      // parse urlencoded body
-      throw new Error('implement urlencoded body parsing')
-    case 'json':
-      // parse json body
-      throw new Error('implement json body parsing')
-    case 'multipart':
-      // parse multipart body
-      throw new Error('implement multipart body parsing')
-    default:
-      // 415 error code
-      res.statusCode = 415
-      res.end()
-      break
-  }
-})
-```
-
-## License
-
-[MIT](LICENSE)
-
-[coveralls-image]: https://badgen.net/coveralls/c/github/jshttp/type-is/master
-[coveralls-url]: https://coveralls.io/r/jshttp/type-is?branch=master
-[node-version-image]: https://badgen.net/npm/node/type-is
-[node-version-url]: https://nodejs.org/en/download
-[npm-downloads-image]: https://badgen.net/npm/dm/type-is
-[npm-url]: https://npmjs.org/package/type-is
-[npm-version-image]: https://badgen.net/npm/v/type-is
-[travis-image]: https://badgen.net/travis/jshttp/type-is/master
-[travis-url]: https://travis-ci.org/jshttp/type-is
